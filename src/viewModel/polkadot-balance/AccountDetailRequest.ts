@@ -10,6 +10,6 @@ export class AccountDetailRequest {
   @ApiProperty()
   time_end: Date;
 
-  @ApiProperty()
+  @ApiProperty({ default: false })
   include_transfers: boolean;
 }

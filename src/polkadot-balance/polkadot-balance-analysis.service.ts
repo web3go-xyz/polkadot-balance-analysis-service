@@ -1,11 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
+  Between,
   FindConditions,
   FindManyOptions,
   FindOneOptions,
   In,
   IsNull,
+  LessThan,
+  LessThanOrEqual,
   Like,
+  MoreThanOrEqual,
   Not,
   Repository,
 } from 'typeorm';
@@ -22,6 +26,7 @@ import { AccountDetailRequest } from 'src/viewModel/polkadot-balance/AccountDeta
 import { AccountDetailResponse } from 'src/viewModel/polkadot-balance/AccountDetailResponse';
 import { AccountSimpleRequest } from 'src/viewModel/polkadot-balance/AccountSimpleRequest';
 import { AccountSimpleResponse } from 'src/viewModel/polkadot-balance/AccountSimpleResponse';
+import { Transfers } from 'src/common/entity/PolkadotBalanceModule/Transfers';
 @Injectable()
 export class PolkadotBalanceAnalysisService {
   async getAccounts(request: AccountsRequest): Promise<AccountsResponse> {
@@ -79,14 +84,52 @@ export class PolkadotBalanceAnalysisService {
     };
 
     if (request.include_transfers) {
-      //TODO
+      //from
+      let transfers_from = await this.transfersRepository.find({
+        where: {
+          fromAccountId: request.account_id,
+          timestamp: Between(request.time_start, request.time_end),
+        },
+        order: { timestamp: 'ASC' },
+      });
+
+      //to
+      let transfers_to = await this.transfersRepository.find({
+        where: {
+          toAccountId: request.account_id,
+          timestamp: Between(request.time_start, request.time_end),
+        },
+        order: { timestamp: 'ASC' },
+      });
+
+      let transfers: Transfers[] = [];
+      if (transfers_from) {
+        transfers_from.forEach((t) => {
+          transfers.push(t);
+        });
+      }
+      if (transfers_to) {
+        transfers_to.forEach((t) => {
+          transfers.push(t);
+        });
+      }
+
+      transfers = transfers.sort((a, b) => {
+        return a.timestamp.getTime() - b.timestamp.getTime();
+      });
+
+      resp.transfers = transfers;
     }
 
+    //TODO
     return resp;
   }
 
   constructor(
     @Inject(RepositoryConsts.POLKADOT_BALANCE_ACCOUNT_REPOSITORY)
     private accountRepository: Repository<Accounts>,
+
+    @Inject(RepositoryConsts.POLKADOT_BALANCE_TRANSFERS_REPOSITORY)
+    private transfersRepository: Repository<Transfers>,
   ) {}
 }

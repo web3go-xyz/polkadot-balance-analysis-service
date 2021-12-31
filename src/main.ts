@@ -7,14 +7,13 @@ async function bootstrap() {
   app.enableCors();
   const config = new DocumentBuilder()
     .addBearerAuth()
-    .setTitle('rmrk-analysis-service')
-    .setDescription('rmrk analysis service for NFT')
+    .setTitle('polkadot-balance-analysis-service')
+    .setDescription('polkadot balance analysis service')
     .setVersion('0.1')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('/api', app, document);
 
-  await app.listen(20005);
+  await app.listen(20007);
 }
 bootstrap();
-

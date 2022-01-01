@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Accounts } from 'src/common/entity/PolkadotBalanceModule/Accounts';
 import { Transfers } from 'src/common/entity/PolkadotBalanceModule/Transfers';
+import { TransactionTypeEnum } from './TransactionTypeEnum';
 
 export class AccountDetailResponse {
   @ApiProperty({ default: '' })
@@ -13,5 +14,10 @@ export class AccountDetailResponse {
   time_end: Date;
 
   @ApiProperty()
-  transfers: Transfers[];
+  transactions: TransactionType[];
+}
+export class TransactionType {
+  @ApiProperty()
+  type: TransactionTypeEnum;
+  list: any[];
 }

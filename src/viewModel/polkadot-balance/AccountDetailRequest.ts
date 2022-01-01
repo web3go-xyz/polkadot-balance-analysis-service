@@ -11,5 +11,5 @@ export class AccountDetailRequest {
   time_end: Date;
 
   @ApiProperty({ default: false })
-  include_transfers: boolean;
+  include_transactions_detail: boolean;
 }

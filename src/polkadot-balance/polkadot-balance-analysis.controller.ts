@@ -23,14 +23,16 @@ export class PolkadotBalanceAnalysisController {
   constructor(private readonly service: PolkadotBalanceAnalysisService) {}
 
   @Post('/getAccounts')
-  @ApiOperation({ summary: 'get account list;' })
+  @ApiOperation({
+    summary: 'get account list;获取所有在polkadot链上的账户列表',
+  })
   @ApiOkResponse({ type: AccountsResponse })
   getAccounts(@Body() request: AccountsRequest): Promise<AccountsResponse> {
     return this.service.getAccounts(request);
   }
 
   @Post('/getAccountSimple')
-  @ApiOperation({ summary: 'get account simple information;' })
+  @ApiOperation({ summary: 'get account simple information;获取账户基本信息' })
   @ApiOkResponse({ type: AccountSimpleResponse })
   getAccountSimple(
     @Body() request: AccountSimpleRequest,
@@ -39,7 +41,9 @@ export class PolkadotBalanceAnalysisController {
   }
 
   @Post('/getAccountDetail')
-  @ApiOperation({ summary: 'get account detail;' })
+  @ApiOperation({
+    summary: 'get account detail;获取账户详细信息， 包含历史活动记录',
+  })
   @ApiOkResponse({ type: AccountDetailResponse })
   getAccountDetail(
     @Body() request: AccountDetailRequest,

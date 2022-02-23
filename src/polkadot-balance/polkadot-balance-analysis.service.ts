@@ -407,7 +407,7 @@ export class PolkadotBalanceAnalysisService {
 
     return transfers_to;
   }
-  
+
   private isRunning = false;
   private logger: MyLogger;
   private wsProvider: WsProvider;
@@ -556,7 +556,7 @@ export class PolkadotBalanceAnalysisService {
             acc.id = batchAccountList[rawIndex];
             acc.freeBalance = raw.data.free.toBigInt().toString();
             acc.reserveBalance = raw.data.reserved.toBigInt().toString();
-            acc.totalBalance = BigInt(acc.freeBalance + acc.reserveBalance).toString();
+            acc.totalBalance = (BigInt(acc.freeBalance) + BigInt(acc.reserveBalance)).toString();
             accountEntities.push(acc);
             this.logger.debug(`[${currentIndex + rawIndex}/${total}] account ${acc.id} ...`);
           }

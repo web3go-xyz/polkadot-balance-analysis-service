@@ -37,6 +37,11 @@ import { Deposits } from 'src/common/entity/PolkadotBalanceModule/Deposits';
 import { BalanceSets } from 'src/common/entity/PolkadotBalanceModule/BalanceSets';
 import { Endoweds } from 'src/common/entity/PolkadotBalanceModule/Endoweds';
 import { AccountSnapshots } from 'src/common/entity/PolkadotBalanceModule/AccountSnapshots';
+import { AccountsLatestSyncBlock } from 'src/common/entity/PolkadotBalanceModule/AccountsLatestSyncBlock';
+import { Cron } from '@nestjs/schedule';
+import { ApiPromise, WsProvider } from '@polkadot/api';
+import { AccountInfo } from "@polkadot/types/interfaces/system";
+
 @Injectable()
 export class PolkadotBalanceAnalysisService {
   async getAccounts(request: AccountsRequest): Promise<AccountsResponse> {
@@ -402,6 +407,210 @@ export class PolkadotBalanceAnalysisService {
 
     return transfers_to;
   }
+
+  private isRunning = false;
+  private logger: MyLogger;
+  private wsProvider: WsProvider;
+  private api: ApiPromise;
+  private ws_endpoint: string;
+
+  @Cron('0 */2 * * * *')
+  async updateMoonbeamBalanceAccounts(): Promise<any> {
+    if (this.isRunning) {
+      this.logger.log("Accounts updating service is running, aborting new job...");
+      return;
+    } else {
+      this.isRunning = true;
+    }
+
+    const latestSyncBlock: AccountsLatestSyncBlock = await this.polkadotBalanceAccountsLatestSyncBlockRepository.findOne();
+    let latestSyncBlockNum;
+    let ws_endpoint = 'wss://rpc.polkadot.io';
+    // If the AccountsLatestSyncBlock table is empty, init it with block number 0; else retrieve the latest sync block
+    if (!latestSyncBlock) {
+      latestSyncBlockNum = 0;
+      let newAccountsLatestSyncBlock = new AccountsLatestSyncBlock();
+      newAccountsLatestSyncBlock.id = "1";
+      newAccountsLatestSyncBlock.blockNumber = 0;
+      newAccountsLatestSyncBlock.chain_name = 'polkadot';
+      newAccountsLatestSyncBlock.ws_endpoint = ws_endpoint;
+      newAccountsLatestSyncBlock.sync_time = new Date();
+      await this.polkadotBalanceAccountsLatestSyncBlockRepository.save(newAccountsLatestSyncBlock);
+    } else {
+      latestSyncBlockNum = latestSyncBlock.blockNumber;
+      ws_endpoint = latestSyncBlock.ws_endpoint;
+    }
+    this.logger.verbose(`latestSyncBlockNum:${latestSyncBlockNum},ws_endpoint:${ws_endpoint}`);
+
+    const query1 = `
+      SELECT max(max_block_num) as max_block_number
+      FROM (
+      SELECT 1 as "id",max(block_number) as max_block_num
+      FROM transfers
+      UNION 
+      SELECT 2 as "id",max(block_number) as max_block_num
+      FROM withdraws
+      UNION
+      SELECT 3 as "id",max(block_number) as max_block_num
+      FROM deposits
+      UNION
+      SELECT 4 as "id",max(block_number) as max_block_num
+      FROM balance_sets
+      UNION
+      SELECT 5 as "id",max(block_number) as max_block_num
+      FROM endoweds
+      UNION
+      SELECT 6 as "id",max(block_number) as max_block_num
+      FROM reserv_repatriateds
+      UNION
+      SELECT 7 as "id",max(block_number) as max_block_num
+      FROM reserveds
+      UNION
+      SELECT 8 as "id",max(block_number) as max_block_num
+      FROM unreserveds
+      UNION
+      SELECT 9 as "id",max(block_number) as max_block_num
+      FROM slashes) temp`;
+    const rawData1 = await this.transfersRepository.query(query1);
+
+    const query2 = `
+      SELECT DISTINCT from_account_id as account_id
+      FROM transfers
+      WHERE block_number > ${latestSyncBlockNum}
+      UNION
+      SELECT DISTINCT to_account_id as account_id
+      from transfers
+      WHERE block_number > ${latestSyncBlockNum}
+      UNION
+      SELECT DISTINCT account_id
+      FROM deposits
+      WHERE block_number > ${latestSyncBlockNum}
+      UNION
+      SELECT DISTINCT account_id
+      FROM withdraws
+      WHERE block_number > ${latestSyncBlockNum}
+      UNION
+      SELECT DISTINCT account_id
+      FROM balance_sets
+      WHERE block_number > ${latestSyncBlockNum}
+      UNION
+      SELECT DISTINCT account_id
+      FROM endoweds
+      WHERE block_number > ${latestSyncBlockNum}
+      UNION
+      SELECT DISTINCT from_account_id as account_id
+      FROM reserv_repatriateds
+      WHERE block_number > ${latestSyncBlockNum}
+      UNION
+      SELECT DISTINCT to_account_id as account_id
+      FROM reserv_repatriateds
+      WHERE block_number > ${latestSyncBlockNum}
+      UNION
+      SELECT DISTINCT account_id
+      FROM reserveds
+      WHERE block_number > ${latestSyncBlockNum}
+      UNION
+      SELECT DISTINCT account_id
+      FROM unreserveds
+      WHERE block_number > ${latestSyncBlockNum}
+      UNION
+      SELECT DISTINCT account_id
+      FROM slashes
+      WHERE block_number > ${latestSyncBlockNum}`;
+    const rawData2 = await this.transfersRepository.query(query2);
+
+    if (rawData2 && rawData2.length > 0) {
+
+      let batch_size = 100;
+      let currentIndex = 0;
+      let total = rawData2.length;
+      this.logger.verbose(`total account count:${total}`);
+
+      this.ws_endpoint = ws_endpoint;
+      this.api = await this.initApi(this.ws_endpoint);
+
+      //Use multi query to improve performance
+      while (currentIndex < total) {
+
+        let batchAccountList = [];
+        for (let i = 0; i < batch_size; i++) {
+          let index = currentIndex + i;
+          if (index < total) {
+            const record = rawData2[index];
+            batchAccountList.push(record.account_id);
+          }
+        }
+
+        try {
+
+          await this.checkReady(this.wsProvider, this.ws_endpoint);
+
+          let rawList = (await this.api.query.system.account.multi(
+            batchAccountList
+          ));
+
+          let accountEntities: Accounts[] = [];
+          for (let rawIndex = 0; rawIndex < rawList.length; rawIndex++) {
+            const raw = rawList[rawIndex] as AccountInfo;
+            let acc: Accounts = new Accounts();
+            acc.id = batchAccountList[rawIndex];
+            acc.freeBalance = raw.data.free.toBigInt().toString();
+            acc.reserveBalance = raw.data.reserved.toBigInt().toString();
+            acc.totalBalance = (BigInt(acc.freeBalance) + BigInt(acc.reserveBalance)).toString();
+            accountEntities.push(acc);
+            this.logger.debug(`[${currentIndex + rawIndex}/${total}] account ${acc.id} ...`);
+          }
+          this.logger.verbose(`[${currentIndex + rawList.length}/${total}] ${accountEntities.length} accounts saving to database...`);
+          await this.accountRepository.save(accountEntities);
+
+          currentIndex += batchAccountList.length;
+
+        } catch (error) {
+          console.log(error);
+          this.logger.error(`error occurs when query accounts, will retry from ${currentIndex}`);
+        }
+      }
+
+    } else {
+      this.logger.verbose("No accounts found in the new blocks range.")
+    }
+
+    if (rawData1 && rawData1.length > 0) {
+      const record = rawData1[0];
+      let latestBlockNumIndexed = record.max_block_number as number;
+      latestBlockNumIndexed = latestBlockNumIndexed - 1;// -1 to avoid leaving out accounts at ongoing block by accident
+      this.logger.verbose("Start synchronizing accounts from block " + latestSyncBlockNum + " to block " + latestBlockNumIndexed);
+      await this.polkadotBalanceAccountsLatestSyncBlockRepository.update(
+        { id: '1' },
+        { blockNumber: latestBlockNumIndexed })
+    }
+    this.isRunning = false;
+  }
+
+  async initApi(ws_endpoint: string): Promise<ApiPromise> {
+    this.wsProvider = new WsProvider(ws_endpoint);
+    this.api = await ApiPromise.create({ provider: this.wsProvider });
+
+    await this.checkReady(this.wsProvider, ws_endpoint);
+
+    return this.api;
+  }
+  async checkReady(wsProvider: WsProvider, ws_endpoint: string) {
+    let isReady = wsProvider.isConnected;
+    let maxWait = 30;
+    while (!isReady && maxWait > 0) {
+      maxWait--;
+      await FunctionExt.sleep(1000);
+    }
+    if (isReady) {
+      this.logger.debug('checkReady pass, the connection is avaliable');
+    }
+    else {
+      this.logger.warn('checkReady failed , reInit the connection');
+      await this.initApi(ws_endpoint);
+    }
+  }
+
   constructor(
     @Inject(RepositoryConsts.POLKADOT_BALANCE_ACCOUNT_REPOSITORY)
     private accountRepository: Repository<Accounts>,
@@ -434,5 +643,10 @@ export class PolkadotBalanceAnalysisService {
 
     @Inject(RepositoryConsts.POLKADOT_BALANCE_WITHDRAWS_REPOSITORY)
     private withdrawRepository: Repository<Withdraws>,
-  ) {}
+
+    @Inject(RepositoryConsts.POLKADOT_BALANCE_ACCOUNTS_LATEST_SYNC_BLOCK_REPOSITORY)
+    private polkadotBalanceAccountsLatestSyncBlockRepository: Repository<AccountsLatestSyncBlock>,
+  ) {
+    this.logger = new MyLogger('PolkadotBalanceAnalysisService');
+  }
 }

@@ -36,7 +36,6 @@ import { Reserveds } from 'src/common/entity/PolkadotBalanceModule/Reserveds';
 import { Deposits } from 'src/common/entity/PolkadotBalanceModule/Deposits';
 import { BalanceSets } from 'src/common/entity/PolkadotBalanceModule/BalanceSets';
 import { Endoweds } from 'src/common/entity/PolkadotBalanceModule/Endoweds';
-import { AccountSnapshots } from 'src/common/entity/PolkadotBalanceModule/AccountSnapshots';
 import { AccountsLatestSyncBlock } from 'src/common/entity/PolkadotBalanceModule/AccountsLatestSyncBlock';
 import { Cron } from '@nestjs/schedule';
 import { ApiPromise, WsProvider } from '@polkadot/api';
@@ -614,8 +613,6 @@ export class PolkadotBalanceAnalysisService {
   constructor(
     @Inject(RepositoryConsts.POLKADOT_BALANCE_ACCOUNT_REPOSITORY)
     private accountRepository: Repository<Accounts>,
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_ACCOUNT_SNAPSHOTS_REPOSITORY)
-    private accountSnapshotRepository: Repository<AccountSnapshots>,
 
     @Inject(RepositoryConsts.POLKADOT_BALANCE_ENDOWEDS_REPOSITORY)
     private endowedRepository: Repository<Endoweds>,

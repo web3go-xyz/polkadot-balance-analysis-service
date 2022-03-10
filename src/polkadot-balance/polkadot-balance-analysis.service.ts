@@ -19,24 +19,24 @@ import { PageRequest } from 'src/viewModel/base/pageRequest';
 
 import { MyLogger } from 'src/common/log/logger.service';
 import { FunctionExt } from 'src/common/utility/functionExt';
-import { Accounts } from 'src/common/entity/PolkadotBalanceModule/Accounts';
+import { Accounts } from 'src/common/entity/KusamaBalanceModule/Accounts';
 import { AccountsRequest } from 'src/viewModel/polkadot-balance/AccountsRequest';
 import { AccountsResponse } from 'src/viewModel/polkadot-balance/AccountsResponse';
 import { AccountDetailRequest } from 'src/viewModel/polkadot-balance/AccountDetailRequest';
 import { AccountDetailResponse } from 'src/viewModel/polkadot-balance/AccountDetailResponse';
 import { AccountSimpleRequest } from 'src/viewModel/polkadot-balance/AccountSimpleRequest';
 import { AccountSimpleResponse } from 'src/viewModel/polkadot-balance/AccountSimpleResponse';
-import { Transfers } from 'src/common/entity/PolkadotBalanceModule/Transfers';
+import { Transfers } from 'src/common/entity/KusamaBalanceModule/Transfers';
 import { TransactionTypeEnum } from 'src/viewModel/polkadot-balance/TransactionTypeEnum';
-import { ReservRepatriateds } from 'src/common/entity/PolkadotBalanceModule/ReservRepatriateds';
-import { Slashes } from 'src/common/entity/PolkadotBalanceModule/Slashes';
-import { Withdraws } from 'src/common/entity/PolkadotBalanceModule/Withdraws';
-import { Unreserveds } from 'src/common/entity/PolkadotBalanceModule/Unreserveds';
-import { Reserveds } from 'src/common/entity/PolkadotBalanceModule/Reserveds';
-import { Deposits } from 'src/common/entity/PolkadotBalanceModule/Deposits';
-import { BalanceSets } from 'src/common/entity/PolkadotBalanceModule/BalanceSets';
-import { Endoweds } from 'src/common/entity/PolkadotBalanceModule/Endoweds';
-import { AccountsLatestSyncBlock } from 'src/common/entity/PolkadotBalanceModule/AccountsLatestSyncBlock';
+import { ReservRepatriateds } from 'src/common/entity/KusamaBalanceModule/ReservRepatriateds';
+import { Slashes } from 'src/common/entity/KusamaBalanceModule/Slashes';
+import { Withdraws } from 'src/common/entity/KusamaBalanceModule/Withdraws';
+import { Unreserveds } from 'src/common/entity/KusamaBalanceModule/Unreserveds';
+import { Reserveds } from 'src/common/entity/KusamaBalanceModule/Reserveds';
+import { Deposits } from 'src/common/entity/KusamaBalanceModule/Deposits';
+import { BalanceSets } from 'src/common/entity/KusamaBalanceModule/BalanceSets';
+import { Endoweds } from 'src/common/entity/KusamaBalanceModule/Endoweds';
+import { AccountsLatestSyncBlock } from 'src/common/entity/KusamaBalanceModule/AccountsLatestSyncBlock';
 import { Cron } from '@nestjs/schedule';
 import { ApiPromise, WsProvider } from '@polkadot/api';
 import { AccountInfo } from "@polkadot/types/interfaces/system";
@@ -422,19 +422,19 @@ export class PolkadotBalanceAnalysisService {
       this.isRunning = true;
     }
 
-    const latestSyncBlock: AccountsLatestSyncBlock = await this.polkadotBalanceAccountsLatestSyncBlockRepository.findOne();
+    const latestSyncBlock: AccountsLatestSyncBlock = await this.kusamaBalanceAccountsLatestSyncBlockRepository.findOne();
     let latestSyncBlockNum;
-    let ws_endpoint = 'wss://rpc.polkadot.io';
+    let ws_endpoint = 'wss://kusama-rpc.polkadot.io';
     // If the AccountsLatestSyncBlock table is empty, init it with block number 0; else retrieve the latest sync block
     if (!latestSyncBlock) {
       latestSyncBlockNum = 0;
       let newAccountsLatestSyncBlock = new AccountsLatestSyncBlock();
       newAccountsLatestSyncBlock.id = "1";
       newAccountsLatestSyncBlock.blockNumber = 0;
-      newAccountsLatestSyncBlock.chain_name = 'polkadot';
+      newAccountsLatestSyncBlock.chain_name = 'kusama';
       newAccountsLatestSyncBlock.ws_endpoint = ws_endpoint;
       newAccountsLatestSyncBlock.sync_time = new Date();
-      await this.polkadotBalanceAccountsLatestSyncBlockRepository.save(newAccountsLatestSyncBlock);
+      await this.kusamaBalanceAccountsLatestSyncBlockRepository.save(newAccountsLatestSyncBlock);
     } else {
       latestSyncBlockNum = latestSyncBlock.blockNumber;
       ws_endpoint = latestSyncBlock.ws_endpoint;
@@ -579,7 +579,7 @@ export class PolkadotBalanceAnalysisService {
       let latestBlockNumIndexed = record.max_block_number as number;
       latestBlockNumIndexed = latestBlockNumIndexed - 1;// -1 to avoid leaving out accounts at ongoing block by accident
       this.logger.verbose("Start synchronizing accounts from block " + latestSyncBlockNum + " to block " + latestBlockNumIndexed);
-      await this.polkadotBalanceAccountsLatestSyncBlockRepository.update(
+      await this.kusamaBalanceAccountsLatestSyncBlockRepository.update(
         { id: '1' },
         { blockNumber: latestBlockNumIndexed })
     }
@@ -611,39 +611,39 @@ export class PolkadotBalanceAnalysisService {
   }
 
   constructor(
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_ACCOUNT_REPOSITORY)
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_ACCOUNT_REPOSITORY)
     private accountRepository: Repository<Accounts>,
 
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_ENDOWEDS_REPOSITORY)
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_ENDOWEDS_REPOSITORY)
     private endowedRepository: Repository<Endoweds>,
 
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_TRANSFERS_REPOSITORY)
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_TRANSFERS_REPOSITORY)
     private transfersRepository: Repository<Transfers>,
 
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_BALANCE_SETS_REPOSITORY)
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_BALANCE_SETS_REPOSITORY)
     private balanceSetRepository: Repository<BalanceSets>,
 
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_DEPOSITS_REPOSITORY)
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_DEPOSITS_REPOSITORY)
     private depositRepository: Repository<Deposits>,
 
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_RESERVREPATRIATEDS_REPOSITORY)
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_RESERVREPATRIATEDS_REPOSITORY)
     private reservRepatriatedRepository: Repository<ReservRepatriateds>,
 
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_RESERVEDS_REPOSITORY)
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_RESERVEDS_REPOSITORY)
     private reservedRepository: Repository<Reserveds>,
 
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_SLASH_REPOSITORY)
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_SLASH_REPOSITORY)
     private slashRepository: Repository<Slashes>,
 
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_UNRESERVEDS_REPOSITORY)
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_UNRESERVEDS_REPOSITORY)
     private unreservedRepository: Repository<Unreserveds>,
 
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_WITHDRAWS_REPOSITORY)
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_WITHDRAWS_REPOSITORY)
     private withdrawRepository: Repository<Withdraws>,
 
-    @Inject(RepositoryConsts.POLKADOT_BALANCE_ACCOUNTS_LATEST_SYNC_BLOCK_REPOSITORY)
-    private polkadotBalanceAccountsLatestSyncBlockRepository: Repository<AccountsLatestSyncBlock>,
+    @Inject(RepositoryConsts.KUSAMA_BALANCE_ACCOUNTS_LATEST_SYNC_BLOCK_REPOSITORY)
+    private kusamaBalanceAccountsLatestSyncBlockRepository: Repository<AccountsLatestSyncBlock>,
   ) {
-    this.logger = new MyLogger('PolkadotBalanceAnalysisService');
+    this.logger = new MyLogger('KusamaBalanceAnalysisService');
   }
 }

@@ -7,13 +7,13 @@ async function bootstrap() {
   app.enableCors();
   const config = new DocumentBuilder()
     .addBearerAuth()
-    .setTitle('polkadot-balance-analysis-service')
-    .setDescription('polkadot balance analysis service')
+    .setTitle('kusama-balance-analysis-service')
+    .setDescription('kusama balance analysis service')
     .setVersion('0.1')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('/api', app, document);
 
-  await app.listen(20007);
+  await app.listen(20017);
 }
 bootstrap();

@@ -1,6 +1,6 @@
 ## Description
 
-balance analysis for accounts in Polkadot chain
+balance analysis for accounts in kusama chain
 
  
 ## Installation
@@ -19,7 +19,7 @@ $ npm run start
 
 ## API Document
 ```bash
-http://localhost:20007/api
+http://localhost:20017/api
 ```
  
 

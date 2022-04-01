@@ -18,7 +18,7 @@ import { AccountsResponse } from 'src/viewModel/polkadot-balance/AccountsRespons
 import { PolkadotBalanceAnalysisService } from './polkadot-balance-analysis.service';
 
 @UseInterceptors(HttpCacheInterceptor)
-@Controller('polkadot-balance-analysis')
+@Controller('balance-analysis')
 export class PolkadotBalanceAnalysisController {
   constructor(private readonly service: PolkadotBalanceAnalysisService) {}
 

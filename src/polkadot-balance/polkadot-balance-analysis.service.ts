@@ -413,7 +413,7 @@ export class PolkadotBalanceAnalysisService {
   private api: ApiPromise;
   private ws_endpoint: string;
 
-  @Cron('0 */2 * * * *')
+  @Cron('0 */5 * * * *')
   async updateMoonbeamBalanceAccounts(): Promise<any> {
     if (this.isRunning) {
       this.logger.log("Accounts updating service is running, aborting new job...");
